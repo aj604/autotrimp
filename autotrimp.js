@@ -133,7 +133,10 @@ function updateHousingHighlighting() {
 		for (ghouse in ghousing) {
 			var gbuilding = game.buildings[ghousing[ghouse]];
 			var gcost = 0;
-			gcost += getBuildingItemPrice(gbuilding, "gems");
+			gcost += getBuildingItemPrice(gbuilding, "gems", 0, game.global.buyAmt);
+			if (gcost === Infinity) {
+				return;
+			}
 			var gratio = gcost / gbuilding.increase.by;
 			gobj[ghousing[ghouse]] = gratio;
 			if (document.getElementById(ghousing[ghouse]).style.border = "1px solid #00CC00") {
@@ -155,11 +158,25 @@ function updateHealthHighlighting() {
 			ghealth.push(ahealth[aheal]);
 		}
 	}
+	var equipmentAvailable = {armor: [], weapons: []}
+	for (var item in game.upgrades){
+		var upgradeObj = game.upgrades[item];
+		if (upgradeObj.locked || item == "Shieldblock" || item == "Gigastation") continue;
+		if (upgradeObj.prestiges){
+			if (game.global.autoPrestiges == 0) continue;
+			if (game.equipment[upgradeObj.prestiges].locked == 1) continue;
+			var type = (typeof game.equipment[upgradeObj.prestiges].health === 'undefined') ? "weapons" : "armor";
+			equipmentAvailable[type].push(item);
+			continue;
+		}
+	}
+	var cheapestArmor = getCheapestPrestigeUpgrade(equipmentAvailable.armor)
+	var cheapestArmorCost = cheapestArmor[1]/cheapestArmor[0].health
 	if (ghealth.length) {
 		for (gheal in ghealth) {
 			var hequip = game.equipment[ghealth[gheal]];
 			var mcost = 0;
-			mcost += getBuildingItemPrice(hequip, "metal", true);
+			mcost += getBuildingItemPrice(hequip, "metal", true, 1);
 			var mratio = mcost / hequip.healthCalculated;
 			hobj[ghealth[gheal]] = mratio;
 			if (document.getElementById(ghealth[gheal]).style.border = "1px solid #0000FF") {
@@ -168,8 +185,13 @@ function updateHealthHighlighting() {
 			}
 		}
 		hkeysSorted = Object.keys(hobj).sort(function(a,b){return hobj[a]-hobj[b]});
+		if(hkeysSorted[0] < cheapestArmorCost){
 		document.getElementById(hkeysSorted[0]).style.border = "1px solid #0000FF";
 		document.getElementById(hkeysSorted[0]).addEventListener('click',updateHealthHighlighting,false);
+		}else{
+		document.getElementById(Object.keys(cheapestArmor[0])).style.border = "1px solid #0000FF";
+		document.getElementById(Object.keys(cheapestArmor[0])).addEventListener('click',updateHealthHighlighting,false);
+		}
 	}
 }
 
@@ -181,11 +203,25 @@ function updateAttackHighlighting() {
 			gAttacking.push(aAttacking[aAttack]);
 		}
 	}
+	var equipmentAvailable = {armor: [], weapons: []}
+	for (var item in game.upgrades){
+		var upgradeObj = game.upgrades[item];
+		if (upgradeObj.locked || item == "Shieldblock" || item == "Gigastation") continue;
+		if (upgradeObj.prestiges){
+			if (game.global.autoPrestiges == 0) continue;
+			if (game.equipment[upgradeObj.prestiges].locked == 1) continue;
+			var type = (typeof game.equipment[upgradeObj.prestiges].health === 'undefined') ? "weapons" : "armor";
+			equipmentAvailable[type].push(item);
+			continue;
+		}
+	}
+	var cheapestWeapon = getCheapestPrestigeUpgrade(equipmentAvailable.weapons)
+	var cheapestWeaponCost = cheapestWeapon[1]/cheapestWeapon[0].attack
 	if (gAttacking.length) {
 		for (gAttack in gAttacking) {
 			var aequip = game.equipment[gAttacking[gAttack]];
 			var mcost = 0;
-			mcost += getBuildingItemPrice(aequip, "metal", true);
+			mcost += getBuildingItemPrice(aequip, "metal", true, 1);
 			var mratio = mcost / aequip.attackCalculated;
 			aobj[gAttacking[gAttack]] = mratio;
 			if (document.getElementById(gAttacking[gAttack]).style.border = "1px solid #FF0000") {
@@ -194,8 +230,13 @@ function updateAttackHighlighting() {
 			}
 		}
 		var akeysSorted = Object.keys(aobj).sort(function(a,b){return aobj[a]-aobj[b]});
-		document.getElementById(akeysSorted[0]).style.border = "1px solid #FF0000";
-		document.getElementById(akeysSorted[0]).addEventListener('click',updateAttackHighlighting,false);
+		if(akeysSorted[0] < cheapestWeaponCost){
+			document.getElementById(akeysSorted[0]).style.border = "1px solid #FF0000";
+			document.getElementById(akeysSorted[0]).addEventListener('click',updateAttackHighlighting,false);
+		}else{
+			document.getElementById(Object.keys(cheapestWeapon[0])).style.border = "1px solid #FF0000";
+			document.getElementById(Object.keys(cheapestWeapon[0])).addEventListener('click',updateAttackHighlighting,false);
+		}
 	}
 }
 
@@ -244,7 +285,7 @@ if (autoTSettings.autobuildings.enabled == 1) {
 
 //Buy tributes
 if (autoTSettings.autogymbutes.enabled == 1 || autoTSettings.autogymbutes.enabled == 3) {
-	if (getBuildingItemPrice(game.buildings.Tribute, "food", false) <= game.resources.food.owned && game.buildings.Tribute.locked == 0) {
+  if (getBuildingItemPrice(game.buildings.Tribute, "food", false, game.global.buyAmt) <= game.resources.food.owned && game.buildings.Tribute.locked == 0) {
 		buyBuilding('Tribute');
 		tooltip("hide");
 		message("Bought us a tribute. The gems must flow!", "Loot", "*eye2", "exotic")
@@ -297,7 +338,7 @@ if (autoTSettings.automapbmax.enabled == 1 && game.global.mapsActive && !game.gl
 
 //Buy gyms
 if (autoTSettings.autogymbutes.enabled == 1 || autoTSettings.autogymbutes.enabled == 2) {
-	if (getBuildingItemPrice(game.buildings.Gym, "wood", false) <= game.resources.wood.owned && game.buildings.Gym.locked == 0) {
+	if (getBuildingItemPrice(game.buildings.Gym, "wood", false, game.global.buyAmt) <= game.resources.wood.owned && game.buildings.Gym.locked == 0) {
 		buyBuilding('Gym');
 		tooltip("hide");
 		message("Bought us a gym. Open 24/7.", "Loot", "*eye2", "exotic")
